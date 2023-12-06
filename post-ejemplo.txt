@@ -1,0 +1,222 @@
+<?php
+include "config.php";
+
+// Verificar la sesión
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    // Si no está logueado, redirigir a la página de inicio de sesión
+    header("Location: login.php");
+    exit();
+}
+
+// Conectar a la base de datos
+$conexion = new mysqli($config['db_host'], $config['db_user'], $config['db_password'], $config['db_name']);
+
+// Verificar la conexión
+if ($conexion->connect_error) {
+    die("Error en la conexión a la base de datos: " . $conexion->connect_error);
+}
+
+// Obtener el grupo del usuario actual
+$id_usuario = $_SESSION['user_id'];
+$sql_grupo = "SELECT id_grupo FROM usuarios WHERE id = $id_usuario";
+$resultado_grupo = $conexion->query($sql_grupo);
+
+if ($resultado_grupo->num_rows > 0) {
+    $row_grupo = $resultado_grupo->fetch_assoc();
+    $id_grupo_usuario = $row_grupo['id_grupo'];
+
+    // Consulta SQL para obtener los posts de la categoría "normativas"
+    $sql = "SELECT * FROM posts WHERE categoria = 'normativas'";
+    $resultado = $conexion->query($sql);
+} else {
+    // Si no se puede obtener el grupo del usuario, redirigir
+    header("Location: login.php");
+    exit();
+}
+
+// Cerrar la conexión
+$conexion->close();
+
+// Function to obtain the profile image URL
+function obtener_url_de_foto_de_perfil($user_id) {
+    // Perform a database query to get the profile image URL based on the user ID
+    // Replace the following with your actual database query logic
+
+    global $config; // Access the global configuration array
+
+    $db_host = $config['db_host'];
+    $db_user = $config['db_user'];
+    $db_password = $config['db_password'];
+    $db_name = $config['db_name'];
+
+    $conexion = new mysqli($db_host, $db_user, $db_password, $db_name);
+
+    if ($conexion->connect_error) {
+        die("Error en la conexión a la base de datos: " . $conexion->connect_error);
+    }
+
+    $sql = "SELECT profile_image_url FROM usuarios WHERE id = $user_id";
+    $result = $conexion->query($sql);
+
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        return $row['profile_image_url'];
+    } else {
+        // If no profile image URL is found, return a default image URL
+        return "https://i.pinimg.com/736x/e5/91/dc/e591dc82326cc4c86578e3eeecced792.jpg";
+    }
+
+    $conexion->close();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="<?php echo $config['home_title']; ?> - <?php echo $server_info['gamename']; ?> Server. You can view current players & Statistic, or connect our server " />
+    <link rel="shortcut icon" href="https://play-servers.com/images/games/webp/icons/<?php echo $server_info['game']; ?>.webp" type="image/x-icon" />
+    <title><?php echo $config['home_title']; ?></title>
+    <link href="styles.css" rel="stylesheet" />
+</head>
+<body class="d-flex flex-column h-100">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container px-5 d-flex justify-content-between align-items-center">
+            <!-- Logo centrado -->
+            <a class="navbar-brand" href="#">
+                <img src="https://i.imgur.com/kS2OrQI.png" alt="Logo">
+            </a>
+
+            <!-- Opciones a la derecha -->
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="index.php">Inicio</a></li>
+                <li class="nav-item"><a class="nav-link" href="foro.php">Foro</a></li>
+                <li class="nav-item"><a class="nav-link" href="#about">Opcion 3</a></li>
+
+                <!-- Botón de perfil -->
+                <li class="nav-item">
+                    <?php
+                    // Verifica si hay una sesión activa
+                    if (isset($_SESSION['user_id'])) {
+                        // Obtén el ID del usuario de la sesión
+                        $user_id = $_SESSION['user_id'];
+
+                        // Obtén la URL de la foto de perfil
+                        $profile_image_url = obtener_url_de_foto_de_perfil($user_id);
+
+                        // Verifica si la URL de la foto de perfil está definida
+                        if ($profile_image_url) {
+                            echo '<a class="nav-link" href="profile.php">
+                                    <img src="' . $profile_image_url . '" alt="Foto de Perfil" width="30" height="30" class="rounded-circle">
+                                  </a>';
+                        } else {
+                            // Si no hay URL de foto de perfil, muestra la imagen predeterminada
+                            echo '<a class="nav-link" href="profile.php">
+                                    <img src="https://i.pinimg.com/736x/e5/91/dc/e591dc82326cc4c86578e3eeecced792.jpg" alt="No Logueado" width="30" height="30" class="rounded-circle">
+                                  </a>';
+                        }
+                    } else {
+                        // Si no está logueado, muestra una imagen diferente
+                        echo '<a class="nav-link" href="login.php">
+                                <img src="https://i.pinimg.com/736x/e5/91/dc/e591dc82326cc4c86578e3eeecced792.jpg" alt="No Logueado" width="30" height="30" class="rounded-circle">
+                              </a>';
+                    }
+                    ?>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <br />
+
+    <div class="container">
+        <!-- Primera sección (Foro Original) -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="text-start">Normativas</h3>
+                    <!-- Mostrar el botón solo si el usuario está logueado y es del grupo 'Admin' o 'Moderador' -->
+                    <?php if (isset($_SESSION['user_id']) && ($id_grupo_usuario == 7 || $id_grupo_usuario == 4)): ?>
+                        <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#crearPostModal">
+                            Crear Post
+                        </button>
+                    <?php endif; ?>
+                </div>
+
+                <div class="card mb-4" id="about">
+                    <div class="card-header" style="background-color: #212529; color: #ffffff;">Sección de Normativas de Los Santos V</div>
+                    <div class="card-body">
+                        <!-- Muestra los posts aquí -->
+                        <?php
+                        while ($row = $resultado->fetch_assoc()) {
+                            echo '<div class="mb-3">';
+                            echo '<h5><a href="post.php?id=' . $row['id'] . '">' . $row['titulo'] . '</a></h5>';
+                            echo '<p>' . $row['descripcion'] . '</p>';
+                            echo '</div>';
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear Post -->
+    <div class="modal fade" id="crearPostModal" tabindex="-1" aria-labelledby="crearPostModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="crearPostModalLabel">Crear Post</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Formulario para el título, descripción y categoría -->
+                    <form method="post" action="procesar_creacion_post.php">
+                        <div class="mb-3">
+                            <label for="titulo" class="form-label">Título</label>
+                            <input type="text" class="form-control" id="titulo" name="titulo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcion" name="descripcion" rows="4" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoria" class="form-label">Categoría</label>
+                            <select class="form-select" id="categoria" name="categoria" required>
+                                <option value="normativas">Normativas</option>
+                                <!-- Agrega más opciones según sea necesario -->
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Publicar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ... Puedes seguir replicando según sea necesario ... -->
+
+    <footer class="bg-dark py-4 mt-auto">
+        <div class="container px-5">
+            <div class="row align-items-center justify-content-between flex-column flex-sm-row">
+                <div class="col-auto">
+                    <div class="small m-0 text-white">
+                        <p>Los Santos V es una entidad independiente y no guarda afiliación ni cuenta con el respaldo oficial de Rockstar North, Take-Two Interactive, ni otros poseedores de derechos relevantes. Todas las marcas comerciales utilizadas en este contexto son propiedad exclusiva de sus respectivos propietarios.</p>
+                        <p>En este sentido, Los Santos V se reserva con firmeza todos los derechos sobre las imágenes y demás contenido visual que se presenta en su plataforma, asegurando así la protección de la propiedad intelectual legítima. Apreciamos y respetamos los derechos de autor, reconociendo la importancia de preservar la integridad de las creaciones visuales y gráficas.</p>
+                        <p>En cualquier caso, si se considera que algún elemento gráfico o visual infringe algún derecho de autor, le instamos a ponerse en contacto con nosotros de inmediato para abordar y resolver cualquier problema de manera justa y eficiente. En Los Santos V, nos esforzamos por mantener altos estándares éticos y legales en relación con la propiedad intelectual.</p>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <!-- Agrega aquí íconos y enlaces a las redes sociales -->
+                    <a href="#" class="text-white me-3"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="text-white me-3"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="text-white me-3"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/scripts.js"></script>
+</body>
+</html>
